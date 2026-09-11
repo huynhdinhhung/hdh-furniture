@@ -2,6 +2,16 @@
 
 Repository: [huynhdinhhung/hdh-furniture](https://github.com/huynhdinhhung/hdh-furniture) (Public). Docker Hub: `hung16`.
 
+## Release đã xác minh — 11/09/2026
+
+[Run #3](https://github.com/huynhdinhhung/hdh-furniture/actions/runs/34609212671) trên `main` đã đạt branch-policy, quality, containers, ci-required và publish. Quality gồm lint/typecheck, 24 unit test, 20 integration test, build và E2E. Hai image đã xuất bản với tag `main`, `latest` và `sha-658cd566180b58f9b592b64ad4c484c89944cadc`.
+
+Cặp digest từ summary/artifact của run được lưu ở [releases/2026-09-11.env](releases/2026-09-11.env); đây là định danh image công khai, không chứa thông tin đăng nhập. Dùng file này làm `release.env` theo hướng dẫn bên dưới. `DOCKERHUB_TOKEN` được lưu trong GitHub Actions Secrets; `DOCKERHUB_USERNAME=hung16` và `ENABLE_DOCKER_PUBLISH=true` đã cấu hình trên repository. Environment `production` chỉ cho nhánh `main`.
+
+Đã pull chính cặp digest này và chạy Compose release trên stack thử riêng `hdh-release-check`, cổng loopback 33110, database/volumes mới. Migration hoàn tất, PostgreSQL/API/web healthy; seed catalog thành công. Smoke test thực đạt: trang chủ/catalog, health/products/settings trả 200, catalog có dữ liệu; khách bị chặn admin (401), CUSTOMER bị chặn admin (403), đăng ký tạo session HttpOnly/Secure, session trả đúng tài khoản và logout vô hiệu hóa session. Chỉ seed dữ liệu giả trong stack thử; không thay dữ liệu người dùng. Đây là kiểm thử local qua HTTP; production vẫn cần reverse proxy HTTPS.
+
+Bảo vệ nhánh chưa lưu được: đã chuẩn bị ruleset Active `Protect main and develop`, không có bypass, yêu cầu PR/check `ci-required` từ GitHub Actions, nhánh cập nhật, giải quyết hội thoại, cấm force push/xóa; approvals = 0. GitHub yêu cầu xác minh lại tài khoản ở hộp `Confirm access` khi bấm Create. Cho đến khi người dùng xác minh và lưu thành công, không coi main/develop đã được bảo vệ. Payload classic tương đương có ở `.github/branch-protection.json`.
+
 ## Nhánh
 
 - `main`: bản phát hành ổn định, nhận PR từ `develop` hoặc `hotfix/*` cùng repository.
