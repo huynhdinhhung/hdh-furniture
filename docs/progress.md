@@ -59,5 +59,7 @@ Web http://localhost:3000; API http://localhost:4000/api/v1/health. Cụm trust 
 - Khôi phục mật khẩu qua email chưa cấu hình; giao diện thông báo rõ. Widget tư vấn là mô phỏng, chưa gửi tin cho nhân viên.
 - Thay catalog/ảnh minh họa, bổ sung thông tin cửa hàng, HTTPS, DB có mật khẩu và backup DB/uploads.
 - Không đọc/in/ghi đè .env người dùng. Kiểm tra trước đó cho thấy sai thông tin đăng nhập DB chính; các test dùng DB riêng.
-- Docker Engine đã chạy; API catalog trước đó build thành công vào cache. Chưa kiểm thử toàn bộ container sau thay đổi commerce. GitHub Actions có workflow nhưng chưa chạy trên GitHub. Chưa push GitHub/Docker Hub hoặc phát hành internet.
+- GitHub đã có repository Public `huynhdinhhung/hdh-furniture` và ba nhánh main/develop/feature/ci-cd-pipeline. Run #3 trên main đã đạt toàn bộ CI và publish hai image lên Docker Hub; xem docs/ci-cd.md và docs/releases/2026-09-11.env. Chưa triển khai website lên internet.
+- Đã kiểm thử chính hai image release trong stack Docker riêng `hdh-release-check`: migrate/seed thành công, DB/API/web healthy, HTTP catalog/settings và đăng ký/session/phân quyền/logout đạt. Bản thử tại http://localhost:33110; dữ liệu giả riêng, không tác động preview hoặc DB của người dùng.
+- Ruleset bảo vệ main/develop đã điền nhưng GitHub chặn lưu bằng bước xác minh lại tài khoản (`Confirm access`). Chưa xác nhận bảo vệ nhánh đã được bật; cần hoàn tất xác minh trong trình duyệt.
 
