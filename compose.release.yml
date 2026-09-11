@@ -1,0 +1,64 @@
+services:
+  db:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: furniture_app
+      POSTGRES_PASSWORD: ${DOCKER_DB_PASSWORD:?Set database password}
+      POSTGRES_DB: furniture_db
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U furniture_app -d furniture_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+  migrate:
+    image: ${API_IMAGE:?Use API_IMAGE from a successful release artifact}
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?Set database URL using host db}
+    command: ["npm", "run", "db:deploy"]
+    depends_on:
+      db:
+        condition: service_healthy
+  api:
+    image: ${API_IMAGE:?Use API_IMAGE from a successful release artifact}
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${DOCKER_DATABASE_URL:?Set database URL using host db}
+      PORT: 4000
+      NODE_ENV: production
+      WEB_ORIGIN: ${WEB_ORIGIN:?Set public HTTPS origin}
+      SHIPPING_FEE_VND: ${SHIPPING_FEE_VND:-50000}
+      BANK_NAME: ${BANK_NAME:-}
+      BANK_ACCOUNT: ${BANK_ACCOUNT:-}
+      BANK_HOLDER: ${BANK_HOLDER:-}
+    volumes:
+      - uploads:/app/apps/api/uploads
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/api/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+  web:
+    image: ${WEB_IMAGE:?Use WEB_IMAGE from a successful release artifact}
+    restart: unless-stopped
+    environment:
+      API_URL: http://api:4000
+      WEB_ORIGIN: ${WEB_ORIGIN:?Set public HTTPS origin}
+    ports:
+      - "127.0.0.1:${WEB_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+volumes:
+  pgdata:
+  uploads:

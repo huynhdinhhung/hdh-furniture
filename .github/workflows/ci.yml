@@ -1,17 +1,31 @@
-name: Hưng Furniture quality
+name: HDH CI-CD
 on:
   push:
-    branches: [main, dev, "feature/**"]
+    branches: ["**"]
   pull_request:
-    branches: [main, dev]
+    branches: [main, develop]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  workflow_dispatch:
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || startsWith(github.ref, 'refs/heads/feature/') }}
 jobs:
-  quality:
+  branch-policy:
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/check-branch-policy.mjs
+  quality:
+    needs: branch-policy
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
     services:
       postgres:
         image: postgres:18
@@ -31,11 +45,14 @@ jobs:
       API_URL: http://localhost:4000
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: node --test tests/pipeline/*.test.mjs
       - run: npm run db:generate
       - run: npm run lint
       - run: npm run typecheck
@@ -61,7 +78,119 @@ jobs:
   containers:
     needs: quality
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, web]
     steps:
       - uses: actions/checkout@v4
-      - run: docker build -f apps/api/Dockerfile -t hung-api:ci .
-      - run: docker build -f apps/web/Dockerfile -t hung-web:ci .
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          push: false
+          load: true
+          tags: hdh-${{ matrix.app }}:ci
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+      - name: Verify container starts as non-root
+        env:
+          APP: ${{ matrix.app }}
+        run: |
+          test "$(docker run --rm --entrypoint id "hdh-$APP:ci" -u)" != 0
+  ci-required:
+    if: always()
+    needs: [branch-policy, quality, containers]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every validation job to succeed
+        env:
+          POLICY: ${{ needs.branch-policy.result }}
+          QUALITY: ${{ needs.quality.result }}
+          CONTAINERS: ${{ needs.containers.result }}
+        run: test "$POLICY" = success && test "$QUALITY" = success && test "$CONTAINERS" = success
+  publish:
+    needs: ci-required
+    if: >-
+      vars.ENABLE_DOCKER_PUBLISH == 'true' &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: ${{ github.ref_name == 'main' && 'production' || 'staging' }}
+    concurrency:
+      group: docker-publish-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require registry credentials
+        env:
+          USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+          TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: test -n "$USERNAME" && test -n "$TOKEN"
+      - uses: docker/login-action@v4
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/setup-buildx-action@v4
+      - name: API image metadata
+        id: api-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: hung16/hdh-furniture-api
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+      - name: Web image metadata
+        id: web-meta
+        uses: docker/metadata-action@v6
+        with:
+          images: hung16/hdh-furniture-web
+          tags: |
+            type=raw,value=${{ github.ref_name }}
+            type=raw,value=sha-${{ github.sha }}
+            type=raw,value=latest,enable=${{ github.ref_name == 'main' }}
+      - name: Publish API
+        id: api
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/api/Dockerfile
+          push: true
+          tags: ${{ steps.api-meta.outputs.tags }}
+          labels: ${{ steps.api-meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          provenance: mode=min
+          sbom: true
+      - name: Publish web
+        id: web
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: apps/web/Dockerfile
+          push: true
+          tags: ${{ steps.web-meta.outputs.tags }}
+          labels: ${{ steps.web-meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          provenance: mode=min
+          sbom: true
+      - name: Record immutable release pair
+        env:
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+          COMMIT: ${{ github.sha }}
+        run: |
+          printf 'API_IMAGE=hung16/hdh-furniture-api@%s\nWEB_IMAGE=hung16/hdh-furniture-web@%s\nCOMMIT=%s\n' "$API_DIGEST" "$WEB_DIGEST" "$COMMIT" > release.env
+          cat release.env >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ github.sha }}
+          path: release.env
+          retention-days: 90
