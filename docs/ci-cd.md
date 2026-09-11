@@ -1,6 +1,6 @@
 # GitHub và Docker delivery
 
-Repository dự kiến: `huynhdinhhung/hdh-furniture` (Public). Docker Hub: `hung16`.
+Repository: [huynhdinhhung/hdh-furniture](https://github.com/huynhdinhhung/hdh-furniture) (Public). Docker Hub: `hung16`.
 
 ## Nhánh
 
@@ -31,7 +31,7 @@ Image `hung16/hdh-furniture-api` và `hung16/hdh-furniture-web` có tag main/dev
 
 Áp dụng cho cả main và develop: bắt buộc PR, check `ci-required`, nhánh cập nhật trước khi merge, xử lý hết hội thoại, cấm force push/xóa nhánh và áp dụng cả administrator. Payload mẫu ở `.github/branch-protection.json`; file trong repo không tự bật cấu hình GitHub.
 
-Mẫu yêu cầu một người khác approve PR. Nếu chỉ làm một mình, cấu hình số approval bằng 0 nhưng vẫn giữ PR và CI bắt buộc; tác giả không tự approve PR của mình. Chỉ chọn required check sau khi workflow đã chạy và check xuất hiện.
+Mẫu dành cho dự án cá nhân: số approval bằng 0 nhưng vẫn giữ PR và CI bắt buộc. Khi có cộng tác viên, tăng lên 1 để yêu cầu người khác duyệt; tác giả không tự approve PR của mình. Chỉ chọn required check sau khi workflow đã chạy và check xuất hiện.
 
 ## Chạy bản release trên máy chủ
 

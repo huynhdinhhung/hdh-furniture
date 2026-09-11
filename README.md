@@ -75,7 +75,9 @@ Dockerfile dùng build nhiều giai đoạn, tiến trình chạy user node. API
 
 ## CI và chuẩn bị phát hành
 
-GitHub Actions chạy lint/typecheck/unit/integration PostgreSQL 18/build/E2E, sau đó build hai container trên push main/dev/feature và PR. Upload báo cáo Playwright khi lỗi. Bật branch protection yêu cầu job quality + containers trong GitHub trước merge; cấu hình repo này cần chủ repo thực hiện. Workflow không tự push, publish image hay deploy do phạm vi yêu cầu chỉ chuẩn bị local. Chưa có đích hosting/registry và credentials cho bước phát hành CD.
+Repository Public: [huynhdinhhung/hdh-furniture](https://github.com/huynhdinhhung/hdh-furniture). Luồng phát triển `feature/*` → `develop` → `main`; sửa khẩn cấp dùng `hotfix/*`. GitHub Actions kiểm tra quy tắc nhánh, lint/typecheck/unit/integration PostgreSQL 18/build/E2E và hai container. Check bắt buộc để merge là `ci-required`.
+
+Sau khi cấu hình Docker Hub token và bật biến ENABLE_DOCKER_PUBLISH, CI đạt trên main/develop sẽ publish image `hung16/hdh-furniture-api` và `hung16/hdh-furniture-web`, kèm artifact cặp digest để triển khai bằng `compose.release.yml`. Chưa cấu hình máy chủ để tự động deploy website. Xem [hướng dẫn CI/CD](docs/ci-cd.md) về secrets, bảo vệ nhánh, release và rollback.
 
 ## Tài liệu
 
