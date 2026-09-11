@@ -1,0 +1,47 @@
+import { test, expect } from '@playwright/test';
+test('home → catalog → variant, and responsive layout', async ({ page }, testInfo) => {
+  await page.goto('/');
+  await expect(page.getByRole('main').getByRole('heading', { level: 1 })).toContainText('Nhà là nơi');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('home-' + testInfo.project.name + '.png') });
+  await page.getByRole('link', { name: 'Khám phá nội thất ↗', exact: true }).click();
+  await expect(page).toHaveURL(/san-pham/);
+  await expect(page.locator('.product-grid > article').first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('catalog-' + testInfo.project.name + '.png'), fullPage: true });
+  await page.getByLabel('Sắp xếp').selectOption('price_asc');
+  await expect(page).toHaveURL(/sort=price_asc/);
+  const filters = page.locator('.desktop-filters');
+  const mobile = testInfo.project.name === 'mobile';
+  if (mobile) await page.getByText('Lọc sản phẩm', { exact: true }).click();
+  const panel = mobile ? page.locator('.mobile-filters') : filters;
+  await panel.getByLabel('Tìm sản phẩm').fill('Sofa');
+  await panel.getByRole('button', { name: 'Áp dụng bộ lọc' }).click();
+  await expect(page).toHaveURL(/q=Sofa/);
+  await expect(page.locator('.product-grid > article')).toHaveCount(3);
+  await page.reload();
+  await expect(page.locator('.product-grid > article')).toHaveCount(3);
+  await page.locator('.product-grid > article').first().getByRole('link').first().click();
+  await expect(page.locator('.detail-info h1')).toContainText('Sofa');
+  await expect(page.locator('.variant-buttons button')).toHaveCount(2);
+  const imageBefore = await page.locator('.gallery-main').getAttribute('src');
+  await page.getByRole('button', { name: 'Xem ảnh 2', exact: true }).click();
+  await expect(page.locator('.gallery-main')).not.toHaveAttribute('src', imageBefore!);
+  const price = await page.locator('.detail-price').textContent();
+  await page.locator('.variant-buttons button').nth(1).click();
+  await expect(page.locator('.stock')).toContainText('Tạm hết hàng');
+  await expect(page.locator('.detail-price')).not.toHaveText(price!);
+  await expect(page.getByRole('button', {name:'Tạm hết hàng', exact:true})).toBeDisabled();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('detail-' + testInfo.project.name + '.png'), fullPage: true });
+});
+test('empty and invalid filters are explicit', async ({ page }) => {
+  await page.goto('/san-pham?q=doesnotexist12345');
+  await expect(page.getByRole('heading', { name: 'Chưa tìm thấy sản phẩm phù hợp' })).toBeVisible();
+  await page.goto('/san-pham?minPrice=100&maxPrice=1');
+  await expect(page.getByRole('main').getByRole('alert')).toContainText('Bộ lọc chưa hợp lệ');
+});
+test('missing product has a real not-found page', async ({ page }) => {
+  await page.goto('/san-pham/doesnotexist12345');
+  await expect(page.getByRole('heading', { name: 'Không tìm thấy trang' })).toBeVisible();
+});

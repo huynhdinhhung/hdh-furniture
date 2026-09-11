@@ -1,0 +1,1 @@
+export default function Loading() { return <div className="section" role="status" aria-label="Đang tải nội thất"><div className="skeleton skeleton-title" /><div className="product-grid">{[1,2,3,4].map(i => <div className="skeleton" key={i} />)}</div><span className="sr-only">Đang tải nội thất...</span></div>; }

@@ -1,0 +1,36 @@
+{
+  "name": "furniture-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "db:check": "node --env-file=.env scripts/check-db.mjs",
+    "dev": "concurrently -k -n api,web \"npm run dev -w @hung/api\" \"npm run dev -w @hung/web\"",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "node scripts/integration.mjs",
+    "test:e2e": "playwright test",
+    "db:generate": "npm run db:generate -w @hung/api",
+    "db:migrate": "node scripts/migrate-dev.mjs",
+    "db:deploy": "npm run db:deploy -w @hung/api",
+    "db:seed": "npm run db:seed -w @hung/api",
+    "admin:promote": "tsx apps/api/src/modules/auth/promote.ts"
+  },
+  "workspaces": [
+    "apps/*"
+  ],
+  "dependencies": {
+    "pg": "8.16.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.5", "eslint": "9.39.5", "typescript-eslint": "8.70.0",
+    "typescript": "5.9.3", "@types/node": "22.19.0", "concurrently": "10.0.5",
+    "vitest": "5.0.0", "supertest": "7.1.4", "@types/supertest": "6.0.3",
+    "@playwright/test": "1.63.0", "tsx": "4.20.6", "dotenv": "17.2.3"
+  }
+}
